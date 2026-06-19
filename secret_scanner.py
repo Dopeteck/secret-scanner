@@ -17,8 +17,8 @@ import sys
 import os
 import requests   # added for Telegram notifications
 
-TELEGRAM_TOKEN = "8990469058:AAE3GrkIeB6en3JzTiAfOl44kMjOsKkgrmo"
-TELEGRAM_CHAT_ID = "7488871947"
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 def send_telegram(msg: str):
     """Send a message via Telegram bot (non-blocking, ignore errors)."""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
