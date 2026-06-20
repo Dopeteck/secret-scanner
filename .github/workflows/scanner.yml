@@ -18,6 +18,7 @@ jobs:
         run: pip install aiohttp pyyaml regex requests
       - name: Run scanner
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python secret_scanner.py
