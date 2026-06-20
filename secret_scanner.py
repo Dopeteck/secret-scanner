@@ -299,7 +299,13 @@ async def main():
         
         for ev in events:
             repo_name = ev.get('repo', {}).get('name')
-            for commit in ev.get('payload', {}).get('commits', []):
+            commits = ev.get('payload', {}).get('commits', [])
+            logger.info(f"Event: {repo_name} - {len(commits)} commits")   # ADD THIS
+
+            if not commits:
+                continue    # Skip events with no commits
+
+            for commit in commits:
                 commit_sha = commit.get('sha')
                 
                 if not repo_name or not commit_sha:
