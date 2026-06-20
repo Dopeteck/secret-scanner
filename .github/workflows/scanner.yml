@@ -10,10 +10,16 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false   # avoids the post-checkout token error
+          clean: false                 # skip cleaning the workspace on exit
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'           
+          
       - name: Install dependencies
         run: pip install aiohttp pyyaml regex requests
       - name: Run scanner
