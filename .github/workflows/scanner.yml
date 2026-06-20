@@ -11,8 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false   # avoids the post-checkout token error
-          clean: false                 # skip cleaning the workspace on exit
+          token: ${{ secrets.GITHUB_TOKEN }}               # skip cleaning the workspace on exit
 
       - name: Set up Python
         uses: actions/setup-python@v5
