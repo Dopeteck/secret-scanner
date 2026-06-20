@@ -305,10 +305,13 @@ async def main():
                 if not repo_name or not commit_sha:
                     continue
                     
-                diff_text = await github_client.get_diff(repo_name, commit_sha)
+               diff_text = await github_client.get_diff(repo_name, commit_sha)
                 
                 if not diff_text:
+                    logger.warning(f"Skipping {repo_name}@{commit_sha[:7]} - no diff retrieved")
                     continue
+                
+                logger.info(f"Scanning {repo_name}@{commit_sha[:7]} ({len(diff_text)} bytes)")
                     
                 findings = scan_diff(diff_text)
                 
