@@ -1,38 +1,32 @@
 name: Secret Scanner
-
 on:
   schedule:
-    - cron: '*/5 * * * *'   # every 5 minutes
-  workflow_dispatch:         # allow manual run
-
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 jobs:
   scan:
     runs-on: ubuntu-latest
     permissions:
-      contents: write 
+      contents: write
     steps:
       - uses: actions/checkout@v4
-      
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
       - name: Install dependencies
         run: pip install aiohttp pyyaml regex requests
-      
       - name: Run scanner
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python secret_scanner.py
-      
-      - name: Commit updated timestamp file
+      - name: Commit updated timestamp and live keys
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add last_timestamp.txt
+          if [ -f live_keys.log ]; then git add live_keys.log; fi
           git diff --staged --quiet || git commit -m "Update timestamp and live keys"
           git push
